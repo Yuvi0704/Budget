@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yuvi – Task Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Top Bar -->
+        <header class="dashboard-header">
+            <h1>📋 Yuvi's Task Board</h1>
+            <div class="header-actions">
+                <a href="expense-tracker.html" class="btn-nav">💰 Budget Tracker</a>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+
+        <!-- Task Board -->
+        <main class="task-board" id="taskBoard">
+            <div class="task-columns">
+                <!-- Today Column -->
+                <div class="task-column column-today">
+                    <h3>☀️ Today</h3>
+                    <div class="task-list" id="todayTasks"></div>
+                    <div class="add-task-form">
+                        <input type="text" id="todayInput" placeholder="Add a task..." class="task-input">
+                        <button class="btn-add" data-column="today">Add</button>
+                    </div>
+                </div>
+
+                <!-- This Week Column -->
+                <div class="task-column column-week">
+                    <h3>📅 This Week</h3>
+                    <div class="task-list" id="weekTasks"></div>
+                    <div class="add-task-form">
+                        <input type="text" id="weekInput" placeholder="Add a task..." class="task-input">
+                        <button class="btn-add" data-column="week">Add</button>
+                    </div>
+                </div>
+
+                <!-- Backlog Column -->
+                <div class="task-column column-backlog">
+                    <h3>📦 Backlog</h3>
+                    <div class="task-list" id="backlogTasks"></div>
+                    <div class="add-task-form">
+                        <input type="text" id="backlogInput" placeholder="Add a task..." class="task-input">
+                        <button class="btn-add" data-column="backlog">Add</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
