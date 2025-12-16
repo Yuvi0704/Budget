@@ -1,7 +1,18 @@
 /**
  * Yuvi's Monthly Money Tracker
- * A personal expense tracking application with localStorage persistence
+ * A personal expense tracking application with localStorage persistence and login
  */
+
+// ============================================
+// Login Configuration
+// ============================================
+
+const LOGIN_CREDENTIALS = {
+    username: 'yuvi',
+    password: 'Yuvi@01'
+};
+
+const AUTH_KEY = 'yuvi-tracker-auth';
 
 // ============================================
 // Configuration & Default Data
@@ -50,6 +61,37 @@ let expenseChart = null;
 let comparisonChart = null;
 
 // ============================================
+// Authentication Functions
+// ============================================
+
+function isLoggedIn() {
+    return localStorage.getItem(AUTH_KEY) === 'true';
+}
+
+function login(username, password) {
+    if (username === LOGIN_CREDENTIALS.username && password === LOGIN_CREDENTIALS.password) {
+        localStorage.setItem(AUTH_KEY, 'true');
+        return true;
+    }
+    return false;
+}
+
+function logout() {
+    localStorage.removeItem(AUTH_KEY);
+    showLoginScreen();
+}
+
+function showLoginScreen() {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('main-app').style.display = 'none';
+}
+
+function showMainApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+}
+
+// ============================================
 // LocalStorage Functions
 // ============================================
 
@@ -94,6 +136,13 @@ function getTodayDate() {
     return new Date().toISOString().split('T')[0];
 }
 
+function getCurrentMonthYear() {
+    const now = new Date();
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${months[now.getMonth()]}_${now.getFullYear()}`;
+}
+
 // ============================================
 // Calculation Functions
 // ============================================
@@ -101,6 +150,7 @@ function getTodayDate() {
 function calculateTotals() {
     const totalPlanned = state.expenses.reduce((sum, exp) => sum + (parseFloat(exp.planned) || 0), 0);
     const totalActual = state.expenses.reduce((sum, exp) => sum + (parseFloat(exp.actual) || 0), 0);
+    const totalDifference = totalPlanned - totalActual;
     const income = parseFloat(state.income.amount) || 0;
     const moneyLeft = income - totalActual;
     const savingsRate = income > 0 ? ((moneyLeft / income) * 100) : 0;
@@ -108,6 +158,7 @@ function calculateTotals() {
     return {
         totalPlanned,
         totalActual,
+        totalDifference,
         income,
         moneyLeft,
         savingsRate
@@ -122,6 +173,7 @@ function updateSummaryCards() {
     const totals = calculateTotals();
 
     document.getElementById('total-income').textContent = formatCurrency(totals.income);
+    document.getElementById('total-planned-card').textContent = formatCurrency(totals.totalPlanned);
     document.getElementById('total-expenses').textContent = formatCurrency(totals.totalActual);
     document.getElementById('money-left').textContent = formatCurrency(totals.moneyLeft);
     document.getElementById('savings-rate').textContent = `${totals.savingsRate.toFixed(1)}%`;
@@ -129,6 +181,10 @@ function updateSummaryCards() {
     // Update table totals
     document.getElementById('total-planned').textContent = formatCurrencyShort(totals.totalPlanned);
     document.getElementById('total-actual').textContent = formatCurrencyShort(totals.totalActual);
+
+    const diffCell = document.getElementById('total-difference');
+    diffCell.textContent = formatCurrencyShort(totals.totalDifference);
+    diffCell.className = totals.totalDifference >= 0 ? 'difference-positive' : 'difference-negative';
 }
 
 function renderExpenseTable() {
@@ -136,6 +192,9 @@ function renderExpenseTable() {
     tbody.innerHTML = '';
 
     state.expenses.forEach((expense, index) => {
+        const difference = (parseFloat(expense.planned) || 0) - (parseFloat(expense.actual) || 0);
+        const diffClass = difference >= 0 ? 'difference-positive' : 'difference-negative';
+
         const row = document.createElement('tr');
         row.innerHTML = `
       <td>
@@ -162,6 +221,9 @@ function renderExpenseTable() {
                data-field="actual"
                min="0" 
                step="0.01">
+      </td>
+      <td class="difference-cell ${diffClass}">
+        ${formatCurrencyShort(difference)}
       </td>
     `;
         tbody.appendChild(row);
@@ -318,7 +380,7 @@ function updateComparisonChart() {
 
     const options = {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         indexAxis: 'y',
         plugins: {
             legend: {
@@ -384,6 +446,156 @@ function updateComparisonChart() {
 }
 
 // ============================================
+// Export Functions
+// ============================================
+
+function downloadCSV() {
+    const totals = calculateTotals();
+    const monthYear = getCurrentMonthYear();
+
+    // Build CSV content
+    let csv = 'Yuvi Monthly Money Tracker - ' + monthYear.replace('_', ' ') + '\n\n';
+
+    // Summary section
+    csv += 'SUMMARY\n';
+    csv += 'Income Source,' + state.income.name + '\n';
+    csv += 'Total Income,' + totals.income.toFixed(2) + '\n';
+    csv += 'Total Planned,' + totals.totalPlanned.toFixed(2) + '\n';
+    csv += 'Total Actual,' + totals.totalActual.toFixed(2) + '\n';
+    csv += 'Money Left,' + totals.moneyLeft.toFixed(2) + '\n';
+    csv += 'Savings Rate,' + totals.savingsRate.toFixed(1) + '%\n\n';
+
+    // Expense table
+    csv += 'MONTHLY BUDGET\n';
+    csv += 'Category,Planned (CAD),Actual (CAD),Difference\n';
+
+    state.expenses.forEach(exp => {
+        const diff = (parseFloat(exp.planned) || 0) - (parseFloat(exp.actual) || 0);
+        csv += `${exp.category},${parseFloat(exp.planned).toFixed(2)},${parseFloat(exp.actual).toFixed(2)},${diff.toFixed(2)}\n`;
+    });
+
+    csv += `TOTAL,${totals.totalPlanned.toFixed(2)},${totals.totalActual.toFixed(2)},${totals.totalDifference.toFixed(2)}\n\n`;
+
+    // Transactions
+    if (state.transactions.length > 0) {
+        csv += 'TRANSACTIONS\n';
+        csv += 'Date,Category,Amount (CAD)\n';
+
+        const sortedTransactions = [...state.transactions].sort((a, b) =>
+            new Date(b.date) - new Date(a.date)
+        );
+
+        sortedTransactions.forEach(t => {
+            csv += `${t.date},${t.category},${parseFloat(t.amount).toFixed(2)}\n`;
+        });
+    }
+
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Expense_Tracker_${monthYear}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function downloadPDF() {
+    const totals = calculateTotals();
+    const monthYear = getCurrentMonthYear();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.setTextColor(102, 126, 234);
+    doc.text("Yuvi's Monthly Money Tracker", 105, 15, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(monthYear.replace('_', ' '), 105, 22, { align: 'center' });
+
+    // Summary Section
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Summary', 14, 35);
+
+    doc.setFontSize(10);
+    const summaryY = 42;
+    doc.text(`Income Source: ${state.income.name}`, 14, summaryY);
+    doc.text(`Total Income: ${formatCurrency(totals.income)}`, 14, summaryY + 7);
+    doc.text(`Total Planned: ${formatCurrency(totals.totalPlanned)}`, 14, summaryY + 14);
+    doc.text(`Total Actual: ${formatCurrency(totals.totalActual)}`, 14, summaryY + 21);
+    doc.text(`Money Left: ${formatCurrency(totals.moneyLeft)}`, 14, summaryY + 28);
+    doc.text(`Savings Rate: ${totals.savingsRate.toFixed(1)}%`, 14, summaryY + 35);
+
+    // Monthly Budget Table
+    const budgetTableData = state.expenses.map(exp => {
+        const diff = (parseFloat(exp.planned) || 0) - (parseFloat(exp.actual) || 0);
+        return [
+            exp.category,
+            formatCurrencyShort(exp.planned),
+            formatCurrencyShort(exp.actual),
+            formatCurrencyShort(diff)
+        ];
+    });
+
+    budgetTableData.push([
+        'TOTAL',
+        formatCurrencyShort(totals.totalPlanned),
+        formatCurrencyShort(totals.totalActual),
+        formatCurrencyShort(totals.totalDifference)
+    ]);
+
+    doc.autoTable({
+        head: [['Category', 'Planned (CAD)', 'Actual (CAD)', 'Difference']],
+        body: budgetTableData,
+        startY: 85,
+        theme: 'striped',
+        headStyles: { fillColor: [102, 126, 234] },
+        margin: { top: 85 }
+    });
+
+    // Transactions Table
+    if (state.transactions.length > 0) {
+        const sortedTransactions = [...state.transactions].sort((a, b) =>
+            new Date(b.date) - new Date(a.date)
+        );
+
+        const transTableData = sortedTransactions.map(t => [
+            t.date,
+            t.category,
+            formatCurrencyShort(t.amount)
+        ]);
+
+        const finalY = doc.lastAutoTable.finalY || 85;
+
+        doc.setFontSize(14);
+        doc.text('Transactions', 14, finalY + 15);
+
+        doc.autoTable({
+            head: [['Date', 'Category', 'Amount (CAD)']],
+            body: transTableData,
+            startY: finalY + 22,
+            theme: 'striped',
+            headStyles: { fillColor: [102, 126, 234] }
+        });
+    }
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, doc.internal.pageSize.height - 10);
+        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+    }
+
+    // Download
+    doc.save(`Expense_Tracker_${monthYear}.pdf`);
+}
+
+// ============================================
 // Event Handlers
 // ============================================
 
@@ -406,6 +618,7 @@ function handleExpenseChange(event) {
         state.expenses[index][field] = parseFloat(event.target.value) || 0;
     }
 
+    renderExpenseTable();
     updateSummaryCards();
     updateCharts();
     saveToStorage();
@@ -498,10 +711,40 @@ function handleResetMonth() {
 }
 
 // ============================================
+// Login Event Handlers
+// ============================================
+
+function handleLogin(event) {
+    event.preventDefault();
+
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+    const errorDiv = document.getElementById('login-error');
+
+    if (login(username, password)) {
+        showMainApp();
+        initMainApp();
+    } else {
+        errorDiv.textContent = 'Invalid username or password';
+        errorDiv.style.display = 'block';
+
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 3000);
+    }
+}
+
+function handleLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+        logout();
+    }
+}
+
+// ============================================
 // Initialization
 // ============================================
 
-function init() {
+function initMainApp() {
     // Load saved data
     loadFromStorage();
 
@@ -530,6 +773,11 @@ function init() {
 
     document.getElementById('add-transaction-btn').addEventListener('click', handleAddTransaction);
     document.getElementById('reset-month-btn').addEventListener('click', handleResetMonth);
+    document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+    // Export buttons
+    document.getElementById('download-csv-btn').addEventListener('click', downloadCSV);
+    document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
 
     // Also handle Enter key in transaction form
     document.getElementById('transaction-amount').addEventListener('keypress', (e) => {
@@ -537,6 +785,19 @@ function init() {
             handleAddTransaction();
         }
     });
+}
+
+function init() {
+    // Check if already logged in
+    if (isLoggedIn()) {
+        showMainApp();
+        initMainApp();
+    } else {
+        showLoginScreen();
+    }
+
+    // Add login form event listener
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
 }
 
 // Start the app when DOM is ready
