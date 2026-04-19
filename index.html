@@ -28,8 +28,33 @@
 
 <body>
 
-  <!-- ========== MAIN APP ========== -->
-  <div id="main-app">
+  <!-- ========== LOGIN SCREEN ========== -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="login-emoji">💸</div>
+          <h1>Yuvi's Expense Tracker</h1>
+          <p>Please login to continue</p>
+        </div>
+        <form id="login-form" class="login-form" novalidate>
+          <div class="form-group">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username" placeholder="Enter username" autocomplete="username" required>
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password" required>
+          </div>
+          <div id="login-error" class="login-error" style="display:none;"></div>
+          <button type="submit" class="btn btn--primary btn--block">Login →</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MAIN APP (hidden until logged in) ========== -->
+  <div id="main-app" style="display:none;">
 
     <!-- Header -->
     <header class="header">
@@ -37,6 +62,7 @@
         <div class="header-emoji">💸</div>
         <h1>Yuvi's Daily Expense Tracker</h1>
         <p>Track every daily expense with time and get a monthly report</p>
+        <button id="logout-btn" class="btn-logout">Logout</button>
       </div>
     </header>
 

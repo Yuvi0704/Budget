@@ -9,7 +9,13 @@
 // Constants
 // ============================================================
 
-const STORAGE_KEY = 'yuvi-daily-expenses-v2';
+const STORAGE_KEY  = 'yuvi-daily-expenses-v2';
+const AUTH_KEY     = 'yuvi-tracker-auth-v2';
+
+const CREDENTIALS = {
+  username: 'yuvi',
+  password: 'Yuvi@01'
+};
 
 const CATEGORIES = [
   'Rent', 'Utilities', 'Wifi', 'Insurance', 'Gas',
@@ -40,6 +46,53 @@ let editingId = null;       // id of entry being edited in modal
 
 let donutChart = null;
 let barChart   = null;
+
+// ============================================================
+// Auth
+// ============================================================
+
+function isLoggedIn() {
+  return localStorage.getItem(AUTH_KEY) === 'true';
+}
+
+function doLogin(username, password) {
+  if (username === CREDENTIALS.username && password === CREDENTIALS.password) {
+    localStorage.setItem(AUTH_KEY, 'true');
+    return true;
+  }
+  return false;
+}
+
+function doLogout() {
+  localStorage.removeItem(AUTH_KEY);
+  document.getElementById('main-app').style.display    = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+function showMainApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display    = 'block';
+}
+
+function handleLoginSubmit(e) {
+  e.preventDefault();
+  const username  = document.getElementById('login-username').value.trim();
+  const password  = document.getElementById('login-password').value;
+  const errorDiv  = document.getElementById('login-error');
+
+  if (doLogin(username, password)) {
+    showMainApp();
+    initMainApp();
+  } else {
+    errorDiv.textContent = '❌ Incorrect username or password.';
+    errorDiv.style.display = 'block';
+    setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-password').focus();
+  }
+}
 
 // ============================================================
 // LocalStorage
@@ -776,7 +829,11 @@ function refreshAll() {
 // Init
 // ============================================================
 
-function init() {
+// ============================================================
+// Main App Init (runs after login)
+// ============================================================
+
+function initMainApp() {
   loadEntries();
 
   // Default form values
@@ -791,54 +848,59 @@ function init() {
   renderEntryList();
   renderReport();
 
-  // ---- Event Listeners ----
+  // ---- Event Listeners (only attach once) ----
 
-  // Add expense form
   document.getElementById('expense-form').addEventListener('submit', handleAddExpense);
-
-  // View toggle
   document.getElementById('view-toggle-btn').addEventListener('click', toggleView);
-
-  // Clear today
   document.getElementById('clear-today-btn').addEventListener('click', clearTodayEntries);
-
-  // Clear all
   document.getElementById('clear-all-btn').addEventListener('click', clearAllEntries);
 
-  // Month selector
   document.getElementById('report-month-select').addEventListener('change', function () {
     selectedMonth = this.value;
     renderReport();
   });
 
-  // Export
   document.getElementById('export-pdf-btn').addEventListener('click', exportPDF);
   document.getElementById('export-excel-btn').addEventListener('click', exportExcel);
 
-  // Edit modal
   document.getElementById('edit-form').addEventListener('submit', handleSaveEdit);
   document.getElementById('modal-close-btn').addEventListener('click', closeEditModal);
   document.getElementById('modal-cancel-btn').addEventListener('click', closeEditModal);
 
-  // Close modal on backdrop click
   document.getElementById('edit-modal').addEventListener('click', function(e) {
     if (e.target === this) closeEditModal();
   });
 
-  // Close modal on Escape
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && editingId !== null) closeEditModal();
   });
 
+  document.getElementById('logout-btn').addEventListener('click', function() {
+    if (confirm('Are you sure you want to logout?')) doLogout();
+  });
+
   // Auto-update time field every minute
   setInterval(() => {
-    const timeField = document.getElementById('field-time');
-    // Only auto-update if the date is today and time hasn't been manually changed
     if (document.getElementById('field-date').value === getTodayString()) {
-      // Only update if within ~5 minutes of current time (i.e. likely default)
-      timeField.value = getCurrentTimeString();
+      document.getElementById('field-time').value = getCurrentTimeString();
     }
   }, 60000);
+}
+
+// ============================================================
+// Boot
+// ============================================================
+
+function init() {
+  // Always wire up login form
+  document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
+
+  // Check if already logged in
+  if (isLoggedIn()) {
+    showMainApp();
+    initMainApp();
+  }
+  // else: login screen is visible by default (HTML has display:none on main-app)
 }
 
 // Start
