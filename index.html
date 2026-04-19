@@ -4,14 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description"
-    content="Personal monthly expense tracker to plan, track, and manage your budget effectively.">
-  <title>Yuvi's Monthly Money Tracker</title>
+  <meta name="description" content="Yuvi's Daily Expense Tracker – log every daily expense with timestamps and get automatic monthly reports.">
+  <title>Yuvi's Daily Expense Tracker</title>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -20,201 +19,314 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <!-- Login Screen -->
-  <div id="login-screen" class="login-screen">
-    <div class="login-container">
-      <div class="login-card">
-        <div class="login-header">
-          <div class="login-emoji">💰</div>
-          <h1>Yuvi's Money Tracker</h1>
-          <p>Please login to continue</p>
-        </div>
 
-        <form id="login-form" class="login-form">
-          <div class="form-group">
-            <label for="login-username">Username</label>
-            <input type="text" id="login-username" placeholder="Enter username" autocomplete="username" required>
-          </div>
+  <!-- ========== MAIN APP ========== -->
+  <div id="main-app">
 
-          <div class="form-group">
-            <label for="login-password">Password</label>
-            <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password"
-              required>
-          </div>
-
-          <div id="login-error" class="login-error" style="display: none;"></div>
-
-          <button type="submit" class="btn btn--primary btn--block">Login</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main App (Hidden until logged in) -->
-  <div id="main-app" style="display: none;">
     <!-- Header -->
     <header class="header">
-      <div class="header-emoji">💰</div>
-      <h1>Yuvi's Monthly Money Tracker</h1>
-      <p>Plan, track, and stay on top of your budget.</p>
-      <button id="logout-btn" class="btn-logout">Logout</button>
+      <div class="header-inner">
+        <div class="header-emoji">💸</div>
+        <h1>Yuvi's Daily Expense Tracker</h1>
+        <p>Track every daily expense with time and get a monthly report</p>
+      </div>
     </header>
 
     <div class="container">
-      <!-- Summary Cards -->
-      <section class="summary-cards">
-        <div class="summary-card summary-card--income">
-          <div class="summary-card__icon">💵</div>
-          <div class="summary-card__label">Total Monthly Income</div>
-          <div class="summary-card__value" id="total-income">$0.00 CAD</div>
-        </div>
 
-        <div class="summary-card summary-card--planned">
-          <div class="summary-card__icon">📋</div>
-          <div class="summary-card__label">Total Planned Expenses</div>
-          <div class="summary-card__value" id="total-planned-card">$0.00 CAD</div>
+      <!-- ===== SUMMARY CARDS ===== -->
+      <section class="summary-cards" aria-label="Quick stats">
+        <div class="summary-card summary-card--today">
+          <div class="summary-card__icon">📅</div>
+          <div class="summary-card__label">Today's Total</div>
+          <div class="summary-card__value" id="stat-today-total">$0.00 CAD</div>
         </div>
-
-        <div class="summary-card summary-card--expense">
-          <div class="summary-card__icon">💸</div>
-          <div class="summary-card__label">Total Actual Expenses</div>
-          <div class="summary-card__value" id="total-expenses">$0.00 CAD</div>
+        <div class="summary-card summary-card--count">
+          <div class="summary-card__icon">🧾</div>
+          <div class="summary-card__label">Expenses Today</div>
+          <div class="summary-card__value" id="stat-today-count">0</div>
         </div>
-
-        <div class="summary-card summary-card--left">
-          <div class="summary-card__icon">🏦</div>
-          <div class="summary-card__label">Money Left This Month</div>
-          <div class="summary-card__value" id="money-left">$0.00 CAD</div>
+        <div class="summary-card summary-card--month">
+          <div class="summary-card__icon">📆</div>
+          <div class="summary-card__label">This Month's Total</div>
+          <div class="summary-card__value" id="stat-month-total">$0.00 CAD</div>
         </div>
-
-        <div class="summary-card summary-card--savings">
-          <div class="summary-card__icon">📈</div>
-          <div class="summary-card__label">Savings Rate</div>
-          <div class="summary-card__value" id="savings-rate">0%</div>
+        <div class="summary-card summary-card--avg">
+          <div class="summary-card__icon">📊</div>
+          <div class="summary-card__label">Avg Daily Spend</div>
+          <div class="summary-card__value" id="stat-avg-daily">$0.00 CAD</div>
         </div>
       </section>
 
-      <!-- Income Section -->
-      <section class="section">
+      <!-- ===== ADD EXPENSE FORM ===== -->
+      <section class="section" id="add-expense-section">
         <div class="section__header">
-          <span class="section__icon">💼</span>
-          <h2 class="section__title">Monthly Income</h2>
+          <span class="section__icon">➕</span>
+          <h2 class="section__title">Add Expense</h2>
         </div>
-        <div class="income-form">
-          <div class="form-group">
-            <label for="income-name">Income Source</label>
-            <input type="text" id="income-name" placeholder="e.g., Holiday Inn" value="Holiday Inn">
+
+        <form id="expense-form" class="expense-form" novalidate>
+          <!-- Row 1: Title + Amount -->
+          <div class="form-row">
+            <div class="form-group form-group--grow">
+              <label for="field-title">Expense Title / Item</label>
+              <input type="text" id="field-title" placeholder="e.g., Tim Hortons coffee" autocomplete="off" required>
+            </div>
+            <div class="form-group form-group--amount">
+              <label for="field-amount">Amount (CAD)</label>
+              <input type="number" id="field-amount" placeholder="0.00" min="0.01" step="0.01" required>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="income-amount">Amount (CAD)</label>
-            <input type="number" id="income-amount" placeholder="0.00" value="1500" min="0" step="0.01">
+
+          <!-- Row 2: Category + Payment -->
+          <div class="form-row">
+            <div class="form-group form-group--half">
+              <label for="field-category">Category</label>
+              <select id="field-category">
+                <option value="Rent">Rent</option>
+                <option value="Utilities">Utilities</option>
+                <option value="Wifi">Wifi</option>
+                <option value="Insurance">Insurance</option>
+                <option value="Gas">Gas</option>
+                <option value="Food" selected>Food</option>
+                <option value="Groceries">Groceries</option>
+                <option value="Eating Out">Eating Out</option>
+                <option value="Subscriptions">Subscriptions</option>
+                <option value="Mobile Bill">Mobile Bill</option>
+                <option value="Transport">Transport</option>
+                <option value="Shopping">Shopping</option>
+                <option value="Send to India">Send to India</option>
+                <option value="Affirm">Affirm</option>
+                <option value="Miscellaneous">Miscellaneous</option>
+              </select>
+            </div>
+            <div class="form-group form-group--half">
+              <label for="field-payment">Payment Method</label>
+              <select id="field-payment">
+                <option value="Debit" selected>Debit</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
           </div>
-        </div>
+
+          <!-- Row 3: Date + Time -->
+          <div class="form-row">
+            <div class="form-group form-group--half">
+              <label for="field-date">Date</label>
+              <input type="date" id="field-date" required>
+            </div>
+            <div class="form-group form-group--half">
+              <label for="field-time">Time</label>
+              <input type="time" id="field-time" required>
+            </div>
+          </div>
+
+          <!-- Row 4: Notes -->
+          <div class="form-row">
+            <div class="form-group form-group--grow">
+              <label for="field-notes">Notes (optional)</label>
+              <input type="text" id="field-notes" placeholder="Any additional detail…" autocomplete="off">
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary btn--lg" id="submit-btn">
+              <span id="submit-btn-text">➕ Add Expense</span>
+            </button>
+            <button type="button" class="btn btn--ghost" id="cancel-edit-btn" style="display:none;">✕ Cancel Edit</button>
+          </div>
+        </form>
       </section>
 
-      <!-- Monthly Expense Tracker Section -->
-      <section class="section">
+      <!-- ===== TODAY'S EXPENSES ===== -->
+      <section class="section" id="today-section">
         <div class="section__header">
           <span class="section__icon">📋</span>
-          <h2 class="section__title">Monthly Expense Tracker</h2>
+          <h2 class="section__title">Today's Expenses</h2>
+          <div class="section__actions">
+            <button class="btn btn--sm btn--outline" id="view-toggle-btn">View All</button>
+            <button class="btn btn--sm btn--danger-soft" id="clear-today-btn">Clear Today</button>
+          </div>
         </div>
-        <div class="expense-table-container">
-          <table class="expense-table">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Planned (CAD)</th>
-                <th>Actual (CAD)</th>
-                <th>Difference</th>
-              </tr>
-            </thead>
-            <tbody id="expense-table-body">
-              <!-- Rows will be generated by JavaScript -->
-            </tbody>
-            <tfoot>
-              <tr class="expense-table__totals">
-                <td><strong>TOTAL</strong></td>
-                <td id="total-planned">$0.00</td>
-                <td id="total-actual">$0.00</td>
-                <td id="total-difference">$0.00</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div class="entry-list" id="entry-list">
+          <!-- populated by JS -->
         </div>
       </section>
 
-      <!-- Quick Transaction Logger -->
-      <section class="section">
+      <!-- ===== MONTHLY REPORT ===== -->
+      <section class="section" id="report-section">
         <div class="section__header">
-          <span class="section__icon">⚡</span>
-          <h2 class="section__title">Quick Transaction Logger</h2>
-        </div>
-        <div class="transaction-form">
-          <div class="form-group">
-            <label for="transaction-date">Date</label>
-            <input type="date" id="transaction-date">
+          <span class="section__icon">📈</span>
+          <h2 class="section__title">Monthly Report</h2>
+          <div class="section__actions">
+            <select id="report-month-select" class="month-select" aria-label="Select month for report"></select>
           </div>
-          <div class="form-group">
-            <label for="transaction-category">Category</label>
-            <select id="transaction-category">
-              <!-- Options will be generated by JavaScript -->
+        </div>
+
+        <div class="report-stats" id="report-stats">
+          <div class="report-stat">
+            <div class="report-stat__label">Total Spent</div>
+            <div class="report-stat__value" id="report-total">$0.00</div>
+          </div>
+          <div class="report-stat">
+            <div class="report-stat__label">No. of Entries</div>
+            <div class="report-stat__value" id="report-entries">0</div>
+          </div>
+          <div class="report-stat">
+            <div class="report-stat__label">Top Category</div>
+            <div class="report-stat__value" id="report-top-cat">—</div>
+          </div>
+          <div class="report-stat">
+            <div class="report-stat__label">Avg Daily Spend</div>
+            <div class="report-stat__value" id="report-avg">$0.00</div>
+          </div>
+          <div class="report-stat">
+            <div class="report-stat__label">Active Days</div>
+            <div class="report-stat__value" id="report-days">0</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+          <div class="chart-wrapper">
+            <h3>🍩 Spending by Category</h3>
+            <div class="chart-container chart-container--donut">
+              <canvas id="donut-chart"></canvas>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <h3>📊 Daily Spending</h3>
+            <div class="chart-container chart-container--bar">
+              <canvas id="bar-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Last 5 entries -->
+        <div id="report-last5-wrap">
+          <h3 style="margin-bottom: 0.75rem; font-size:1rem; color:var(--text-secondary);">Last 5 Entries This Month</h3>
+          <div class="entry-list entry-list--compact" id="report-last5"></div>
+        </div>
+
+        <!-- Export buttons -->
+        <div class="export-actions">
+          <button class="btn btn--success" id="export-pdf-btn">📄 Download PDF Report</button>
+          <button class="btn btn--info" id="export-excel-btn">📊 Download Excel (.xlsx)</button>
+        </div>
+      </section>
+
+      <!-- ===== DATA MANAGEMENT ===== -->
+      <section class="section section--danger-zone">
+        <div class="section__header">
+          <span class="section__icon">⚙️</span>
+          <h2 class="section__title">Data Management</h2>
+        </div>
+        <div class="danger-actions">
+          <button class="btn btn--danger" id="clear-all-btn">🗑️ Clear ALL Data</button>
+        </div>
+        <p class="data-note">All data is stored locally in your browser. Clearing browser data will erase everything.</p>
+      </section>
+
+    </div><!-- /container -->
+
+    <footer class="footer">
+      <p>Yuvi's Daily Expense Tracker &nbsp;•&nbsp; Data stored in your browser &nbsp;•&nbsp; CAD Currency</p>
+    </footer>
+
+  </div><!-- /main-app -->
+
+  <!-- ===== EDIT MODAL ===== -->
+  <div id="edit-modal" class="modal-overlay" aria-modal="true" role="dialog" aria-label="Edit Expense" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>✏️ Edit Expense</h2>
+        <button class="modal-close" id="modal-close-btn" aria-label="Close">✕</button>
+      </div>
+      <form id="edit-form" class="expense-form" novalidate>
+        <input type="hidden" id="edit-id">
+        <div class="form-row">
+          <div class="form-group form-group--grow">
+            <label for="edit-title">Expense Title / Item</label>
+            <input type="text" id="edit-title" required>
+          </div>
+          <div class="form-group form-group--amount">
+            <label for="edit-amount">Amount (CAD)</label>
+            <input type="number" id="edit-amount" min="0.01" step="0.01" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group form-group--half">
+            <label for="edit-category">Category</label>
+            <select id="edit-category">
+              <option value="Rent">Rent</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Wifi">Wifi</option>
+              <option value="Insurance">Insurance</option>
+              <option value="Gas">Gas</option>
+              <option value="Food">Food</option>
+              <option value="Groceries">Groceries</option>
+              <option value="Eating Out">Eating Out</option>
+              <option value="Subscriptions">Subscriptions</option>
+              <option value="Mobile Bill">Mobile Bill</option>
+              <option value="Transport">Transport</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Send to India">Send to India</option>
+              <option value="Affirm">Affirm</option>
+              <option value="Miscellaneous">Miscellaneous</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="transaction-amount">Amount (CAD)</label>
-            <input type="number" id="transaction-amount" placeholder="0.00" min="0" step="0.01">
-          </div>
-          <button type="button" class="btn btn--primary" id="add-transaction-btn">Add</button>
-        </div>
-
-        <div class="transaction-list" id="transaction-list">
-          <!-- Transactions will be listed here -->
-        </div>
-      </section>
-
-      <!-- Charts -->
-      <section class="charts-container">
-        <div class="chart-wrapper">
-          <h3>📊 Actual Expenses by Category</h3>
-          <div class="chart-container">
-            <canvas id="expense-chart"></canvas>
+          <div class="form-group form-group--half">
+            <label for="edit-payment">Payment Method</label>
+            <select id="edit-payment">
+              <option value="Debit">Debit</option>
+              <option value="Cash">Cash</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
         </div>
-
-        <div class="chart-wrapper">
-          <h3>📈 Planned vs Actual</h3>
-          <div class="chart-container chart-container--bar">
-            <canvas id="comparison-chart"></canvas>
+        <div class="form-row">
+          <div class="form-group form-group--half">
+            <label for="edit-date">Date</label>
+            <input type="date" id="edit-date" required>
+          </div>
+          <div class="form-group form-group--half">
+            <label for="edit-time">Time</label>
+            <input type="time" id="edit-time" required>
           </div>
         </div>
-      </section>
+        <div class="form-row">
+          <div class="form-group form-group--grow">
+            <label for="edit-notes">Notes (optional)</label>
+            <input type="text" id="edit-notes" placeholder="Any additional detail…">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn--primary btn--lg">💾 Save Changes</button>
+          <button type="button" class="btn btn--ghost" id="modal-cancel-btn">Cancel</button>
+        </div>
+      </form>
     </div>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <p class="footer__note">
-        💡 Note: India loan is paid from "Send to India" budget (150 CAD/month).
-      </p>
-
-      <div class="footer__actions">
-        <button type="button" class="btn btn--success" id="download-csv-btn">📄 Download CSV</button>
-        <button type="button" class="btn btn--success" id="download-pdf-btn">� Download PDF</button>
-        <button type="button" class="btn btn--danger" id="reset-month-btn">🔄 Reset Month</button>
-      </div>
-
-      <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.7;">
-        All data is saved locally in your browser.
-      </p>
-    </footer>
   </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast" aria-live="polite"></div>
 
   <!-- JavaScript -->
   <script src="app.js"></script>
 </body>
 
-</html><!-- FORCE UPDATE -->
+</html>
